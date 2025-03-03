@@ -1,0 +1,594 @@
+        .summary-container {
+            background-color: #8587ff;
+            padding: 20px;
+            border-radius: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .summary-header {
+            text-align: center;
+            margin-bottom: 20px;
+            margin-top: 30px;
+            color: white;
+        }
+
+        .content {
+            background-color: white;
+            border-radius: 100px 100px 20px 20px;
+            padding: 80px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .stats div {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            flex: 1;
+            margin: 0 10px;
+            text-align: center;
+        }
+
+        .review-section {
+            margin-top: 20px;
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            padding: 30px;
+        }
+
+        .question-review {
+            margin-bottom: 20px;
+        }
+
+        .correct {
+            background-color: green;
+            color: white;
+            border-radius: 40px;
+            font-weight: bold;
+            padding: 5px 20px;
+        }
+
+        .incorrect {
+            background-color: red;
+            color: white;
+            border-radius: 40px;
+            font-weight: bold;
+            padding: 5px 20px;
+        }
+
+        .sumimg {
+            width: 70%;
+        }
+
+        .quiz-start button,
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 20px;
+            background-color: #1e90ff;
+            color: white;
+            cursor: pointer;
+            font-weight: 400;
+            font-size: 13px;
+            margin-top: 15px;
+        }
+
+        .stats h2 {
+            color: #3639e2;
+        }
+
+        h4 {
+            margin-top: 15px;
+        }
+
+        h3 {
+            color: #395aff;
+        }
+
+        .popup-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .popup-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .popup-content img {
+            max-width: 100%;
+            height: auto;
+            margin: 20px 0;
+        }
+
+        .popup-content button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #1e90ff;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #achievement-image {
+            width: 30%;
+        }
+
+        .question {
+            background-color: #fff;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+
+        @media (max-width: 768px) {
+
+            .summary-container {
+                padding: 10px;
+
+            }
+
+            .stats {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .stats div {
+                margin-bottom: 15px;
+                margin: 0;
+                width: 50%;
+            }
+
+            .content {
+                padding: 10px;
+            }
+
+            h2 {
+                font-size: 18px;
+            }
+
+            p {
+                font-size: 12px;
+            }
+
+            .correct {
+                font-size: 12px;
+                padding: 0px 10px;
+            }
+
+            .incorrect {
+                font-size: 12px;
+                padding: 0px 10px;
+            }
+
+        }
+
+
+
+        <?php
+include('session.php');
+include('conn.php');
+
+if (!isset($_SESSION['mySession'])) {
+    echo "Session not set. Redirecting...";
+    echo "<script>alert('Please login!');window.location.href='login.php';</script>";
+    exit();
+}
+
+$user_id = $_SESSION['mySession'];
+$profile_picture_number = ($user_id % 4) + 1;
+$profile_picture = "images/pfp" . $profile_picture_number . ".png";
+
+
+if (isset($_GET['quiz_id'])) {
+    $quiz_id = intval($_GET['quiz_id']);
+
+    $check_flag_query = "SELECT points_updated FROM studentquizresults WHERE student_id = ? AND quiz_id = ?";
+    $check_flag_stmt = $con->prepare($check_flag_query);
+    $check_flag_stmt->bind_param("ii", $user_id, $quiz_id);
+    $check_flag_stmt->execute();
+    $check_flag_result = $check_flag_stmt->get_result()->fetch_assoc();
+    $check_flag_stmt->close();
+
+    if ($check_flag_result['points_updated'] == 1) {
+        $existing_data_query = "SELECT score, points, review_data, achievement_milestone, achievement_image FROM studentquizresults WHERE student_id = ? AND quiz_id = ?";
+        $existing_data_stmt = $con->prepare($existing_data_query);
+        $existing_data_stmt->bind_param("ii", $user_id, $quiz_id);
+        $existing_data_stmt->execute();
+        $existing_data_result = $existing_data_stmt->get_result()->fetch_assoc();
+        $existing_data_stmt->close();
+
+        $score = $existing_data_result['score'];
+        $accuracy = ($total_questions > 0) ? round(($score / 100) * 100, 2) : 0;
+        $points = $existing_data_result['points'];
+        $review_data = json_decode($existing_data_result['review_data'], true);
+        $achievement_milestone = $existing_data_result['achievement_milestone'];
+        $achievement_image = $existing_data_result['achievement_image'];
+    } else {
+        include('process_data.php');
+        $result_data = processQuizData($user_id, $quiz_id, $con);
+
+        if (!$result_data) {
+            echo "<script>alert('Error processing quiz data!');window.location.href='dashboard.php';</script>";
+            exit();
+        }
+
+        $score = $result_data['score'];
+        $accuracy = ($total_questions > 0) ? round(($score / 100) * 100, 2) : 0;
+        $points = $result_data['points'];
+        $review_data = $result_data['review_data'];
+        $achievement_milestone = $result_data['achievement_milestone'];
+        $achievement_image = $result_data['achievement_image'];
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href='https://unpkg.com/boxicons@2.1.1/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="icon" type="image/x-icon" href="images/K.png">
+    <link rel="stylesheet" href="css.css">
+    <style>
+        .summary-container {
+            background-color: #8587ff;
+            padding: 20px;
+            border-radius: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .summary-header {
+            text-align: center;
+            margin-bottom: 20px;
+            margin-top: 30px;
+            color: white;
+        }
+
+        .content {
+            background-color: white;
+            border-radius: 100px 100px 20px 20px;
+            padding: 80px;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .stats div {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            flex: 1;
+            margin: 0 10px;
+            text-align: center;
+        }
+
+        .review-section {
+            margin-top: 20px;
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            padding: 30px;
+        }
+
+        .question-review {
+            margin-bottom: 20px;
+        }
+
+        .correct {
+            background-color: green;
+            color: white;
+            border-radius: 40px;
+            font-weight: bold;
+            padding: 5px 20px;
+        }
+
+        .incorrect {
+            background-color: red;
+            color: white;
+            border-radius: 40px;
+            font-weight: bold;
+            padding: 5px 20px;
+        }
+
+        .sumimg {
+            width: 70%;
+        }
+
+        .quiz-start button,
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 20px;
+            background-color: #1e90ff;
+            color: white;
+            cursor: pointer;
+            font-weight: 400;
+            font-size: 13px;
+            margin-top: 15px;
+        }
+
+        .stats h2 {
+            color: #3639e2;
+        }
+
+        h4 {
+            margin-top: 15px;
+        }
+
+        h3 {
+            color: #395aff;
+        }
+
+        .popup-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .popup-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .popup-content img {
+            max-width: 100%;
+            height: auto;
+            margin: 20px 0;
+        }
+
+        .popup-content button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            background-color: #1e90ff;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #achievement-image {
+            width: 30%;
+        }
+
+        .question {
+            background-color: #fff;
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
+
+
+        @media (max-width: 768px) {
+
+            .summary-container {
+                padding: 10px;
+
+            }
+
+            .stats {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .stats div {
+                margin-bottom: 15px;
+                margin: 0;
+                width: 50%;
+            }
+
+            .content {
+                padding: 10px;
+            }
+
+            h2 {
+                font-size: 18px;
+            }
+
+            p {
+                font-size: 12px;
+            }
+
+            .correct {
+                font-size: 12px;
+                padding: 0px 10px;
+            }
+
+            .incorrect {
+                font-size: 12px;
+                padding: 0px 10px;
+            }
+
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="sidebar close">
+        <header>
+            <div class="image-text">
+                <span class="image">
+                    <a href="Dashboard.php">
+                        <img src="images/K.png" alt="" class="close-logo">
+                    </a>
+                </span>
+            </div>
+
+            <i class='bx bx-chevron-right toggle'></i>
+        </header>
+
+        <div class="menu-bar">
+            <div class="menu">
+                <li class="search-box">
+                    <i class='bx bx-search icon'></i>
+                    <input type="text" placeholder="Search...">
+                </li>
+                <ul class="menu-links">
+                    <li class="nav-link">
+                        <a href="#">
+                            <i class='bx bx-home-alt icon'></i>
+                            <span class="text nav-text">Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-link">
+                        <a href="#">
+                            <i class='bx bx-book-open icon'></i>
+                            <span class="text nav-text">Quiz Management</span>
+                        </a>
+                    </li>
+                    <li class="nav-link">
+                        <a href="#">
+                            <i class='bx bx-bar-chart-alt-2 icon'></i>
+                            <span class="text nav-text">Performance Insights</span>
+                        </a>
+                    </li>
+                    <li class="nav-link">
+                        <a href="#">
+                            <i class='bx bx-calendar icon'></i>
+                            <span class="text nav-text">Schedule & Monitor</span>
+                        </a>
+                    </li>
+                    <li class="nav-link">
+                        <a href="#">
+                            <i class='bx bx-support icon'></i>
+                            <span class="text nav-text">Support</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="bottom-content">
+                <li class="">
+                    <a href="logout.php">
+                        <i class='bx bx-log-out icon'></i>
+                        <span class="text nav-text">Logout</span>
+                    </a>
+                </li>
+
+            </div>
+        </div>
+    </nav>
+    <section class="home">
+        <div class="head">
+            <div class="text">Dashboard</div>
+            <div class="icons">
+                <i class='bx bx-bell'></i>
+                <img src="<?php echo $profile_picture; ?>" alt="Profile Picture" class="bx bx-user-circle" style="width:1.5em; height:1.5em;">
+            </div>
+        </div>
+
+        <div class="summary-container">
+            <div class="summary-header">
+                <h1>Quiz Summary</h1>
+                <p>Review your performance below.</p>
+                <img src="images/sum2.png" class="sumimg">
+            </div>
+            <div class="content">
+                <div class="stats">
+                    <div>
+                        <h2>Points</h2>
+                        <p>+<?php echo $points; ?> points</p>
+                    </div>
+                    <div>
+                        <h2>Score</h2>
+                        <p><?php echo round($score, 2) . " / 100"; ?></p>
+                    </div>
+                    <div>
+                        <h2>Accuracy</h2>
+                        <p><?php echo $accuracy; ?>%</p>
+                    </div>
+                </div>
+
+                <div class="review-section">
+                    <h2>Review Questions</h2><br>
+                    <hr><br>
+
+                    <?php foreach ($review_data as $review) : ?>
+                        <div class="question-review">
+                            <div class="question">
+                                <p><?php
+                                    $question_number = 1;
+
+                                    $processed_content = str_replace(["\\n", "\\r"], ["\n", "\r"], $review['question_content']);
+                                    echo "<h3>Question $question_number: </h3><h4>" . nl2br($processed_content) . "</h4>";
+                                    ?></p><br>
+                                <hr>
+
+
+                                <h4>Your Answer:</h4>
+                                <p>
+                                    <?php
+                                    echo htmlspecialchars($review['selected_answer_text'] ?? 'No answer selected');
+                                    if ($review['selected_answer_correct'] == 1) {
+                                        echo " <span class='correct'>Correct</span>";
+                                    } else {
+                                        echo " <span class='incorrect'>Incorrect</span>";
+                                    }
+                                    ?>
+                                </p>
+
+                                <h4>Correct Answer:</h4>
+                                <p><?php
+                                    $correct_answer_text = htmlspecialchars($review['correct_answer_text'] ?? 'No correct answer specified');
+                                    $processed_correct_answer = str_replace(["\\n", "\\r"], ["\n", "\r"], $correct_answer_text);
+                                    echo nl2br($processed_correct_answer);
+                                    ?></p>
+
+                                <h4>Feedback:</h4>
+                                <p><?php
+                                    $feedback_text = htmlspecialchars($review['feedback'] ?? 'No feedback provided');
+                                    $processed_feedback = str_replace(["\\n", "\\r"], ["\n", "\r"], $feedback_text);
+                                    echo nl2br($processed_feedback);
+
+                                    $question_number++;
+                                    ?></p>
+                            </div>
+
+                        <?php endforeach; ?>
+                        <a href="Dashboard.php"><button type="submit">Done</button></a>
+                        </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+<script src="Javascript.js"></script>
+
+</html>
